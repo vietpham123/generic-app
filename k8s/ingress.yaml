@@ -1,0 +1,61 @@
+# ============================================================
+# Ingress with TLS (cert-manager + nginx-ingress)
+# ============================================================
+# AGENT: Update host to match deployment domain
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: "<CLUSTER_ISSUER>"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <APP_HOSTNAME>
+      secretName: app-tls
+  rules:
+    - host: <APP_HOSTNAME>
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-ui
+                port:
+                  number: 80
+---
+# Optional: Locust ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: locust-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "<CLUSTER_ISSUER>"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <LOCUST_HOSTNAME>
+      secretName: locust-tls
+  rules:
+    - host: <LOCUST_HOSTNAME>
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: load-generator
+                port:
+                  number: 8089

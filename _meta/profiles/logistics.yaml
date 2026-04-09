@@ -1,0 +1,155 @@
+industry: logistics
+display_name: "Logistics & Supply Chain Platform"
+
+entities:
+  - name: shipment
+    description: "A shipment being transported"
+    table: shipments
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: origin, type: string }
+      - { name: destination, type: string }
+      - { name: status, type: enum, values: [booked, picked_up, in_transit, delivered, exception] }
+      - { name: weight_kg, type: float }
+      - { name: carrier, type: string }
+      - { name: shipped_at, type: timestamptz }
+      - { name: delivered_at, type: timestamptz, nullable: true }
+    primary_service: primary-service
+    kafka_topic: logistics.shipment
+
+  - name: gps_reading
+    description: "A GPS location reading from a vehicle"
+    table: gps_readings
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: vehicle_id, type: string }
+      - { name: latitude, type: float }
+      - { name: longitude, type: float }
+      - { name: speed_kmh, type: float }
+      - { name: recorded_at, type: timestamptz }
+    primary_service: secondary-service
+    kafka_topic: logistics.gps
+
+  - name: fleet_asset
+    description: "A vehicle, trailer, or container"
+    table: fleet_assets
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: name, type: string }
+      - { name: type, type: enum, values: [truck, van, trailer, container, drone] }
+      - { name: hub, type: string }
+      - { name: status, type: enum, values: [available, in_transit, maintenance, decommissioned] }
+      - { name: last_service, type: timestamptz, nullable: true }
+    primary_service: topology-service
+    kafka_topic: logistics.fleet_asset
+
+  - name: delivery_task
+    description: "A delivery or pickup task assigned to a driver"
+    table: delivery_tasks
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: shipment_id, type: uuid }
+      - { name: driver_id, type: string }
+      - { name: priority, type: enum, values: [standard, express, same_day, overnight] }
+      - { name: status, type: enum, values: [assigned, en_route, arrived, completed, failed] }
+      - { name: eta, type: timestamptz }
+    primary_service: work-order-service
+    kafka_topic: logistics.delivery_task
+
+  - name: volume_forecast
+    description: "Predicted shipment volume for a hub"
+    table: volume_forecasts
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: hub, type: string }
+      - { name: predicted_parcels, type: float }
+      - { name: confidence, type: float }
+      - { name: period_start, type: timestamptz }
+      - { name: period_end, type: timestamptz }
+    primary_service: forecast-service
+    kafka_topic: logistics.volume_forecast
+
+services:
+  primary-service:
+    rename_to: shipment-service
+    description: "Tracks shipments from origin to destination"
+  secondary-service:
+    rename_to: tracking-service
+    description: "Real-time GPS tracking of vehicles"
+  telemetry-service:
+    rename_to: vehicle-telemetry-service
+    description: "Ingests vehicle diagnostics and sensor data"
+  data-ingestion-service:
+    rename_to: route-optimization-service
+    description: "Calculates optimal delivery routes"
+  topology-service:
+    rename_to: fleet-topology-service
+    description: "Models fleet, hubs, and route networks"
+  analytics-service:
+    rename_to: delivery-analytics-service
+    description: "On-time delivery rates and efficiency metrics"
+  forecast-service:
+    rename_to: volume-forecast-service
+    description: "Predicts shipment volumes by hub and date"
+  dispatch-service:
+    rename_to: driver-dispatch-service
+    description: "Assigns drivers and vehicles to deliveries"
+  notification-service:
+    rename_to: notification-service
+    description: "Sends delivery status updates to customers"
+  external-data-service:
+    rename_to: traffic-data-service
+    description: "Integrates live traffic and road condition data"
+  aggregator-service:
+    rename_to: aggregator-service
+    description: "Aggregates delivery, fleet, and cost data"
+  pricing-service:
+    rename_to: rate-engine-service
+    description: "Calculates shipping rates by weight, distance, speed"
+  work-order-service:
+    rename_to: delivery-task-service
+    description: "Manages delivery and pickup task lifecycle"
+  correlation-service:
+    rename_to: exception-correlation-service
+    description: "Correlates delivery exceptions to identify patterns"
+
+ui_tabs:
+  - { label: "Dashboard", icon: "dashboard", endpoint: "/api/analytics/dashboard" }
+  - { label: "Shipments", icon: "local_shipping", endpoint: "/api/shipments" }
+  - { label: "Live Tracking", icon: "gps_fixed", endpoint: "/api/tracking" }
+  - { label: "Route Optimization", icon: "route", endpoint: "/api/routes" }
+  - { label: "Fleet Map", icon: "map", endpoint: "/api/topology" }
+  - { label: "Delivery Analytics", icon: "analytics", endpoint: "/api/analytics" }
+  - { label: "Volume Forecast", icon: "trending_up", endpoint: "/api/forecasts" }
+  - { label: "Driver Dispatch", icon: "person_pin", endpoint: "/api/dispatch" }
+  - { label: "Traffic Data", icon: "traffic", endpoint: "/api/external" }
+  - { label: "Notifications", icon: "notifications", endpoint: "/api/notifications" }
+  - { label: "Rate Engine", icon: "calculate", endpoint: "/api/pricing" }
+  - { label: "Delivery Tasks", icon: "assignment", endpoint: "/api/work-orders" }
+  - { label: "Exceptions", icon: "warning", endpoint: "/api/correlation" }
+  - { label: "Reports", icon: "bar_chart", endpoint: "/api/aggregation" }
+  - { label: "Vehicle Telemetry", icon: "sensors", endpoint: "/api/telemetry" }
+  - { label: "Audit Log", icon: "history", endpoint: "/api/audit" }
+  - { label: "Users", icon: "people", endpoint: "/api/auth/users" }
+
+kpis:
+  - { name: "Active Shipments", field: "active_shipments", format: "number", color: "#2196f3" }
+  - { name: "On-Time Rate", field: "on_time_pct", format: "percent", color: "#4caf50" }
+  - { name: "Vehicles En Route", field: "vehicles_en_route", format: "number", color: "#ff9800" }
+  - { name: "Exceptions Today", field: "exceptions_today", format: "number", color: "#f44336" }
+  - { name: "Avg Delivery Time", field: "avg_delivery_hours", format: "number", color: "#9c27b0" }
+  - { name: "Fleet Utilization", field: "fleet_utilization_pct", format: "percent", color: "#00bcd4" }
+
+roles:
+  - { name: viewer, description: "View dashboards and tracking" }
+  - { name: driver, description: "Update delivery status" }
+  - { name: dispatcher, description: "Assign drivers and routes" }
+  - { name: hub_manager, description: "Full hub operations access" }
+  - { name: admin, description: "System administration" }
+
+regions:
+  - { id: "hub-north", name: "North Distribution Hub" }
+  - { id: "hub-south", name: "South Distribution Hub" }
+  - { id: "hub-east", name: "East Distribution Hub" }
+  - { id: "hub-west", name: "West Distribution Hub" }
+  - { id: "hub-central", name: "Central Sort Facility" }

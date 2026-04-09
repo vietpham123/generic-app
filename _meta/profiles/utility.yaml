@@ -1,0 +1,154 @@
+industry: utility
+display_name: "Utility Management Platform"
+
+entities:
+  - name: outage
+    description: "A power outage event affecting customers"
+    table: outages
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: region, type: string }
+      - { name: severity, type: enum, values: [low, medium, high, critical] }
+      - { name: cause, type: string }
+      - { name: affected_customers, type: integer }
+      - { name: started_at, type: timestamptz }
+      - { name: resolved_at, type: timestamptz, nullable: true }
+    primary_service: primary-service
+    kafka_topic: utility.outage
+
+  - name: usage
+    description: "Energy consumption reading from a meter"
+    table: usage_readings
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: meter_id, type: string }
+      - { name: kwh, type: float }
+      - { name: region, type: string }
+      - { name: recorded_at, type: timestamptz }
+    primary_service: secondary-service
+    kafka_topic: utility.usage
+
+  - name: grid_asset
+    description: "A physical grid component (transformer, line, substation)"
+    table: grid_assets
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: name, type: string }
+      - { name: type, type: enum, values: [transformer, line, substation, breaker] }
+      - { name: location, type: string }
+      - { name: status, type: enum, values: [active, maintenance, decommissioned] }
+      - { name: capacity_mw, type: float }
+    primary_service: topology-service
+    kafka_topic: utility.grid_asset
+
+  - name: work_order
+    description: "A field crew work order"
+    table: work_orders
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: title, type: string }
+      - { name: crew_id, type: string }
+      - { name: priority, type: enum, values: [low, medium, high, urgent] }
+      - { name: status, type: enum, values: [pending, dispatched, in_progress, completed] }
+      - { name: location, type: string }
+      - { name: due_date, type: timestamptz }
+    primary_service: work-order-service
+    kafka_topic: utility.work_order
+
+  - name: demand_forecast
+    description: "Energy demand prediction for a region"
+    table: demand_forecasts
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: region, type: string }
+      - { name: predicted_mwh, type: float }
+      - { name: confidence, type: float }
+      - { name: period_start, type: timestamptz }
+      - { name: period_end, type: timestamptz }
+    primary_service: forecast-service
+    kafka_topic: utility.demand_forecast
+
+services:
+  primary-service:
+    rename_to: outage-service
+    description: "Tracks power outage events and restoration"
+  secondary-service:
+    rename_to: usage-service
+    description: "Monitors energy consumption by meter and region"
+  telemetry-service:
+    rename_to: scada-service
+    description: "Ingests SCADA telemetry from field devices"
+  data-ingestion-service:
+    rename_to: meter-data-service
+    description: "Processes meter data readings in batch"
+  topology-service:
+    rename_to: grid-topology-service
+    description: "Models the electrical grid topology"
+  analytics-service:
+    rename_to: reliability-service
+    description: "Calculates grid reliability metrics (SAIDI, SAIFI, CAIDI)"
+  forecast-service:
+    rename_to: demand-forecast-service
+    description: "Predicts energy demand by region"
+  dispatch-service:
+    rename_to: crew-dispatch-service
+    description: "Assigns field crews to outage locations"
+  notification-service:
+    rename_to: notification-service
+    description: "Sends outage alerts to customers via SMS/email"
+  external-data-service:
+    rename_to: weather-service
+    description: "Integrates weather data for storm prediction"
+  aggregator-service:
+    rename_to: aggregator-service
+    description: "Aggregates outage, usage, and reliability data"
+  pricing-service:
+    rename_to: pricing-service
+    description: "Manages utility rate structures and tariffs"
+  work-order-service:
+    rename_to: work-order-service
+    description: "Manages field crew work orders"
+  correlation-service:
+    rename_to: alert-correlation-service
+    description: "Correlates grid alarms to identify root cause"
+
+ui_tabs:
+  - { label: "Dashboard", icon: "dashboard", endpoint: "/api/analytics/dashboard" }
+  - { label: "Outages", icon: "flash_off", endpoint: "/api/outages" }
+  - { label: "Usage", icon: "electric_meter", endpoint: "/api/usage" }
+  - { label: "SCADA", icon: "sensors", endpoint: "/api/scada" }
+  - { label: "Grid Topology", icon: "account_tree", endpoint: "/api/topology" }
+  - { label: "Reliability", icon: "verified", endpoint: "/api/reliability" }
+  - { label: "Demand Forecast", icon: "trending_up", endpoint: "/api/forecasts" }
+  - { label: "Crew Dispatch", icon: "engineering", endpoint: "/api/dispatch" }
+  - { label: "Weather", icon: "cloud", endpoint: "/api/weather" }
+  - { label: "Notifications", icon: "notifications", endpoint: "/api/notifications" }
+  - { label: "Pricing", icon: "attach_money", endpoint: "/api/pricing" }
+  - { label: "Work Orders", icon: "assignment", endpoint: "/api/work-orders" }
+  - { label: "Correlation", icon: "hub", endpoint: "/api/correlation" }
+  - { label: "Aggregation", icon: "bar_chart", endpoint: "/api/aggregation" }
+  - { label: "Meter Data", icon: "speed", endpoint: "/api/meter-data" }
+  - { label: "Audit Log", icon: "history", endpoint: "/api/audit" }
+  - { label: "Users", icon: "people", endpoint: "/api/auth/users" }
+
+kpis:
+  - { name: "Active Outages", field: "active_outages", format: "number", color: "#f44336" }
+  - { name: "Customers Affected", field: "customers_affected", format: "number", color: "#ff9800" }
+  - { name: "Grid Uptime", field: "grid_uptime_pct", format: "percent", color: "#4caf50" }
+  - { name: "SAIDI (Minutes)", field: "saidi_minutes", format: "minutes", color: "#2196f3" }
+  - { name: "Demand (MWh)", field: "current_demand_mwh", format: "number", color: "#9c27b0" }
+  - { name: "Open Work Orders", field: "open_work_orders", format: "number", color: "#00bcd4" }
+
+roles:
+  - { name: viewer, description: "View dashboards and reports" }
+  - { name: field_operator, description: "Create work orders, update outage status" }
+  - { name: dispatcher, description: "Assign crews to outages" }
+  - { name: grid_manager, description: "Full grid operations access" }
+  - { name: admin, description: "System administration" }
+
+regions:
+  - { id: "northeast", name: "Northeast Region" }
+  - { id: "southeast", name: "Southeast Region" }
+  - { id: "midwest", name: "Midwest Region" }
+  - { id: "southwest", name: "Southwest Region" }
+  - { id: "northwest", name: "Northwest Region" }

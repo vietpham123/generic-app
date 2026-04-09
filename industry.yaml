@@ -1,0 +1,383 @@
+# ============================================================
+# INDUSTRY CONFIGURATION
+# ============================================================
+# This is the single source of truth for customizing the platform.
+# Edit this file, then let an AI agent (see AGENT.md) mutate the
+# entire codebase to match your industry.
+# ============================================================
+
+industry: generic
+display_name: "Generic Operations Platform"
+
+# --- Domain Entities ----------------------------------------
+# Core data objects. Services store, process, and display these.
+entities:
+  - name: incident
+    description: "An operational incident requiring attention"
+    table: incidents
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: title, type: string }
+      - { name: region, type: string }
+      - { name: severity, type: enum, values: [low, medium, high, critical] }
+      - { name: status, type: enum, values: [open, investigating, resolved, closed] }
+      - { name: affected_count, type: integer }
+      - { name: created_at, type: timestamptz }
+      - { name: resolved_at, type: timestamptz, nullable: true }
+    primary_service: primary-service
+    kafka_topic: generic.incident
+
+  - name: reading
+    description: "A telemetry or sensor reading"
+    table: readings
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: sensor_id, type: string }
+      - { name: value, type: float }
+      - { name: unit, type: string }
+      - { name: region, type: string }
+      - { name: recorded_at, type: timestamptz }
+    primary_service: secondary-service
+    kafka_topic: generic.reading
+
+  - name: asset
+    description: "A physical or logical asset being monitored"
+    table: assets
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: name, type: string }
+      - { name: type, type: string }
+      - { name: location, type: string }
+      - { name: status, type: enum, values: [active, maintenance, decommissioned] }
+      - { name: last_inspection, type: timestamptz, nullable: true }
+    primary_service: topology-service
+    kafka_topic: generic.asset
+
+  - name: work_order
+    description: "A task or work order assigned to personnel"
+    table: work_orders
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: title, type: string }
+      - { name: assignee, type: string }
+      - { name: priority, type: enum, values: [low, medium, high, urgent] }
+      - { name: status, type: enum, values: [pending, in_progress, completed, cancelled] }
+      - { name: due_date, type: timestamptz }
+      - { name: created_at, type: timestamptz }
+    primary_service: work-order-service
+    kafka_topic: generic.work_order
+
+  - name: forecast
+    description: "A predicted value or trend"
+    table: forecasts
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: metric, type: string }
+      - { name: predicted_value, type: float }
+      - { name: confidence, type: float }
+      - { name: period_start, type: timestamptz }
+      - { name: period_end, type: timestamptz }
+    primary_service: forecast-service
+    kafka_topic: generic.forecast
+
+  - name: notification
+    description: "An alert or notification sent to users"
+    table: notifications
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: recipient, type: string }
+      - { name: channel, type: enum, values: [email, sms, push, webhook] }
+      - { name: message, type: string }
+      - { name: sent_at, type: timestamptz }
+      - { name: read, type: boolean }
+    primary_service: notification-service
+    kafka_topic: generic.notification
+
+# --- Services -----------------------------------------------
+# Map generic service names to industry-specific names.
+# Set rename_to to customize. Language is fixed per service.
+services:
+  primary-service:
+    rename_to: primary-service
+    language: node
+    port: 3001
+    description: "Core domain event management"
+    entities: [incident]
+
+  secondary-service:
+    rename_to: secondary-service
+    language: node
+    port: 3002
+    description: "Supporting domain data service"
+    entities: [reading]
+
+  telemetry-service:
+    rename_to: telemetry-service
+    language: dotnet
+    port: 5001
+    description: "Telemetry and sensor data ingestion"
+    entities: [reading]
+
+  data-ingestion-service:
+    rename_to: data-ingestion-service
+    language: java
+    port: 8081
+    description: "Batch data processing and ETL"
+    entities: [reading, incident]
+
+  topology-service:
+    rename_to: topology-service
+    language: python
+    port: 5002
+    description: "Asset topology and graph modeling"
+    entities: [asset]
+
+  analytics-service:
+    rename_to: analytics-service
+    language: go
+    port: 8082
+    description: "Real-time analytics and metrics"
+    entities: [incident, reading]
+
+  forecast-service:
+    rename_to: forecast-service
+    language: ruby
+    port: 4567
+    description: "Predictive analytics and forecasting"
+    entities: [forecast]
+
+  dispatch-service:
+    rename_to: dispatch-service
+    language: kotlin
+    port: 8083
+    description: "Task dispatch and crew scheduling"
+    entities: [work_order]
+
+  notification-service:
+    rename_to: notification-service
+    language: php
+    port: 8080
+    description: "Multi-channel notification delivery"
+    entities: [notification]
+
+  external-data-service:
+    rename_to: external-data-service
+    language: elixir
+    port: 4000
+    description: "External API data integration"
+    entities: []
+
+  aggregator-service:
+    rename_to: aggregator-service
+    language: rust
+    port: 8084
+    description: "High-performance data aggregation"
+    entities: [incident, reading, forecast]
+
+  auth-service:
+    rename_to: auth-service
+    language: ruby
+    port: 4568
+    description: "User authentication and management"
+    entities: []
+
+  audit-service:
+    rename_to: audit-service
+    language: go
+    port: 8085
+    description: "Audit trail and compliance logging"
+    entities: []
+
+  pricing-service:
+    rename_to: pricing-service
+    language: python
+    port: 5003
+    description: "Dynamic pricing and rate management"
+    entities: []
+
+  work-order-service:
+    rename_to: work-order-service
+    language: java
+    port: 8086
+    description: "Work order lifecycle management"
+    entities: [work_order]
+
+  correlation-service:
+    rename_to: correlation-service
+    language: dotnet
+    port: 5004
+    description: "Event correlation and root cause analysis"
+    entities: [incident]
+
+# --- UI Tabs ------------------------------------------------
+# Each tab maps to one or more API endpoints in the gateway.
+ui_tabs:
+  - label: "Dashboard"
+    icon: "dashboard"
+    endpoint: "/api/analytics/dashboard"
+    description: "KPI overview and real-time metrics"
+
+  - label: "Incidents"
+    icon: "warning"
+    endpoint: "/api/incidents"
+    description: "Active and historical incidents"
+
+  - label: "Readings"
+    icon: "sensors"
+    endpoint: "/api/readings"
+    description: "Telemetry and sensor data"
+
+  - label: "Assets"
+    icon: "inventory"
+    endpoint: "/api/topology"
+    description: "Asset inventory and topology"
+
+  - label: "Forecasts"
+    icon: "trending_up"
+    endpoint: "/api/forecasts"
+    description: "Predictive analytics"
+
+  - label: "Work Orders"
+    icon: "assignment"
+    endpoint: "/api/work-orders"
+    description: "Task and work order management"
+
+  - label: "Dispatch"
+    icon: "local_shipping"
+    endpoint: "/api/dispatch"
+    description: "Crew and resource scheduling"
+
+  - label: "Notifications"
+    icon: "notifications"
+    endpoint: "/api/notifications"
+    description: "Alert and notification history"
+
+  - label: "Pricing"
+    icon: "attach_money"
+    endpoint: "/api/pricing"
+    description: "Rates and pricing data"
+
+  - label: "Correlation"
+    icon: "hub"
+    endpoint: "/api/correlation"
+    description: "Event correlation analysis"
+
+  - label: "External Data"
+    icon: "cloud"
+    endpoint: "/api/external"
+    description: "Third-party data feeds"
+
+  - label: "Aggregation"
+    icon: "bar_chart"
+    endpoint: "/api/aggregation"
+    description: "Aggregated reports and summaries"
+
+  - label: "Audit Log"
+    icon: "history"
+    endpoint: "/api/audit"
+    description: "System audit trail"
+
+  - label: "Users"
+    icon: "people"
+    endpoint: "/api/auth/users"
+    description: "User management"
+
+# --- KPIs ---------------------------------------------------
+kpis:
+  - name: "Active Incidents"
+    source: "/api/analytics/dashboard"
+    field: "active_incidents"
+    format: "number"
+    color: "#f44336"
+
+  - name: "Readings/Hour"
+    source: "/api/analytics/dashboard"
+    field: "readings_per_hour"
+    format: "number"
+    color: "#2196f3"
+
+  - name: "Asset Uptime"
+    source: "/api/analytics/dashboard"
+    field: "asset_uptime_pct"
+    format: "percent"
+    color: "#4caf50"
+
+  - name: "Open Work Orders"
+    source: "/api/analytics/dashboard"
+    field: "open_work_orders"
+    format: "number"
+    color: "#ff9800"
+
+  - name: "Forecast Accuracy"
+    source: "/api/analytics/dashboard"
+    field: "forecast_accuracy_pct"
+    format: "percent"
+    color: "#9c27b0"
+
+  - name: "Avg Response Time"
+    source: "/api/analytics/dashboard"
+    field: "avg_response_minutes"
+    format: "minutes"
+    color: "#00bcd4"
+
+# --- User Roles ---------------------------------------------
+roles:
+  - name: viewer
+    description: "Read-only access to dashboards and data"
+  - name: operator
+    description: "Can create incidents and work orders"
+  - name: manager
+    description: "Full access including dispatch and pricing"
+  - name: admin
+    description: "System administration and user management"
+
+# --- Regions ------------------------------------------------
+regions:
+  - { id: "region-1", name: "North" }
+  - { id: "region-2", name: "South" }
+  - { id: "region-3", name: "East" }
+  - { id: "region-4", name: "West" }
+  - { id: "region-5", name: "Central" }
+
+# --- Fault Scenarios ----------------------------------------
+# For resilience testing and chaos engineering demos.
+fault_scenarios:
+  - name: "Service Outage"
+    description: "Kill a random backend service pod"
+    target: "any-service"
+
+  - name: "Database Latency"
+    description: "Inject 500ms latency on TimescaleDB"
+    target: "timescaledb"
+
+  - name: "Kafka Partition Loss"
+    description: "Simulate Kafka broker failure"
+    target: "kafka"
+
+  - name: "Cache Flush"
+    description: "Clear all Redis keys"
+    target: "redis"
+
+  - name: "Network Split"
+    description: "Block traffic between two services"
+    target: "network"
+
+# --- Demo Users ---------------------------------------------
+demo_users:
+  - { username: "admin_user", role: admin }
+  - { username: "manager_north", role: manager }
+  - { username: "manager_south", role: manager }
+  - { username: "operator_1", role: operator }
+  - { username: "operator_2", role: operator }
+  - { username: "operator_3", role: operator }
+  - { username: "operator_4", role: operator }
+  - { username: "operator_5", role: operator }
+  - { username: "viewer_1", role: viewer }
+  - { username: "viewer_2", role: viewer }
+  - { username: "viewer_3", role: viewer }
+  - { username: "viewer_4", role: viewer }
+  - { username: "viewer_5", role: viewer }
+  - { username: "viewer_6", role: viewer }
+  - { username: "viewer_7", role: viewer }
+
+demo_password: "changeme2026"

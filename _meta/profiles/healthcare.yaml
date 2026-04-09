@@ -1,0 +1,154 @@
+industry: healthcare
+display_name: "Healthcare Operations Platform"
+
+entities:
+  - name: patient_visit
+    description: "A patient visit or encounter"
+    table: patient_visits
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: patient_id, type: string }
+      - { name: department, type: string }
+      - { name: urgency, type: enum, values: [routine, urgent, emergency, critical] }
+      - { name: status, type: enum, values: [registered, triaged, in_treatment, discharged] }
+      - { name: admitted_at, type: timestamptz }
+      - { name: discharged_at, type: timestamptz, nullable: true }
+    primary_service: primary-service
+    kafka_topic: healthcare.patient_visit
+
+  - name: vital_sign
+    description: "A patient vital sign measurement"
+    table: vital_signs
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: patient_id, type: string }
+      - { name: metric, type: enum, values: [heart_rate, blood_pressure, temperature, spo2, respiratory_rate] }
+      - { name: value, type: float }
+      - { name: unit, type: string }
+      - { name: recorded_at, type: timestamptz }
+    primary_service: secondary-service
+    kafka_topic: healthcare.vital_sign
+
+  - name: medical_device
+    description: "A medical device or equipment"
+    table: medical_devices
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: name, type: string }
+      - { name: type, type: enum, values: [monitor, ventilator, pump, scanner, defibrillator] }
+      - { name: location, type: string }
+      - { name: status, type: enum, values: [available, in_use, maintenance, decommissioned] }
+      - { name: last_calibration, type: timestamptz, nullable: true }
+    primary_service: topology-service
+    kafka_topic: healthcare.medical_device
+
+  - name: care_task
+    description: "A clinical task or care order"
+    table: care_tasks
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: description, type: string }
+      - { name: assigned_to, type: string }
+      - { name: priority, type: enum, values: [low, medium, high, stat] }
+      - { name: status, type: enum, values: [ordered, in_progress, completed, cancelled] }
+      - { name: due_at, type: timestamptz }
+    primary_service: work-order-service
+    kafka_topic: healthcare.care_task
+
+  - name: bed_forecast
+    description: "Predicted bed occupancy for a department"
+    table: bed_forecasts
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: department, type: string }
+      - { name: predicted_occupancy, type: float }
+      - { name: confidence, type: float }
+      - { name: period_start, type: timestamptz }
+      - { name: period_end, type: timestamptz }
+    primary_service: forecast-service
+    kafka_topic: healthcare.bed_forecast
+
+services:
+  primary-service:
+    rename_to: patient-service
+    description: "Manages patient visits and encounters"
+  secondary-service:
+    rename_to: vitals-service
+    description: "Records and monitors patient vital signs"
+  telemetry-service:
+    rename_to: device-telemetry-service
+    description: "Ingests telemetry from medical devices"
+  data-ingestion-service:
+    rename_to: lab-results-service
+    description: "Processes lab results and diagnostics"
+  topology-service:
+    rename_to: facility-topology-service
+    description: "Models hospital floor plans and device locations"
+  analytics-service:
+    rename_to: clinical-analytics-service
+    description: "Calculates clinical quality metrics"
+  forecast-service:
+    rename_to: bed-forecast-service
+    description: "Predicts bed occupancy and patient flow"
+  dispatch-service:
+    rename_to: staff-dispatch-service
+    description: "Assigns nurses and staff to patients"
+  notification-service:
+    rename_to: alert-service
+    description: "Sends clinical alerts to care teams"
+  external-data-service:
+    rename_to: pharmacy-service
+    description: "Integrates pharmacy and medication data"
+  aggregator-service:
+    rename_to: aggregator-service
+    description: "Aggregates clinical and operational data"
+  pricing-service:
+    rename_to: billing-service
+    description: "Manages patient billing and insurance"
+  work-order-service:
+    rename_to: care-task-service
+    description: "Manages clinical task orders"
+  correlation-service:
+    rename_to: symptom-correlation-service
+    description: "Correlates symptoms and alerts for diagnosis"
+
+ui_tabs:
+  - { label: "Dashboard", icon: "dashboard", endpoint: "/api/analytics/dashboard" }
+  - { label: "Patients", icon: "personal_injury", endpoint: "/api/patients" }
+  - { label: "Vital Signs", icon: "monitor_heart", endpoint: "/api/vitals" }
+  - { label: "Lab Results", icon: "biotech", endpoint: "/api/lab-results" }
+  - { label: "Facility Map", icon: "local_hospital", endpoint: "/api/topology" }
+  - { label: "Clinical Metrics", icon: "analytics", endpoint: "/api/analytics" }
+  - { label: "Bed Forecast", icon: "trending_up", endpoint: "/api/forecasts" }
+  - { label: "Staff Dispatch", icon: "badge", endpoint: "/api/dispatch" }
+  - { label: "Pharmacy", icon: "medication", endpoint: "/api/pharmacy" }
+  - { label: "Alerts", icon: "notifications", endpoint: "/api/notifications" }
+  - { label: "Billing", icon: "receipt", endpoint: "/api/billing" }
+  - { label: "Care Tasks", icon: "assignment", endpoint: "/api/care-tasks" }
+  - { label: "Correlation", icon: "hub", endpoint: "/api/correlation" }
+  - { label: "Reports", icon: "bar_chart", endpoint: "/api/aggregation" }
+  - { label: "Device Telemetry", icon: "sensors", endpoint: "/api/telemetry" }
+  - { label: "Audit Log", icon: "history", endpoint: "/api/audit" }
+  - { label: "Users", icon: "people", endpoint: "/api/auth/users" }
+
+kpis:
+  - { name: "Active Patients", field: "active_patients", format: "number", color: "#f44336" }
+  - { name: "Bed Occupancy", field: "bed_occupancy_pct", format: "percent", color: "#ff9800" }
+  - { name: "Avg Wait Time", field: "avg_wait_minutes", format: "minutes", color: "#2196f3" }
+  - { name: "Discharge Rate", field: "discharge_rate", format: "number", color: "#4caf50" }
+  - { name: "Critical Alerts", field: "critical_alerts", format: "number", color: "#9c27b0" }
+  - { name: "Staff Utilization", field: "staff_utilization_pct", format: "percent", color: "#00bcd4" }
+
+roles:
+  - { name: viewer, description: "View dashboards and patient summaries" }
+  - { name: nurse, description: "Record vitals, update care tasks" }
+  - { name: physician, description: "Full clinical access, order creation" }
+  - { name: charge_nurse, description: "Staff assignments, bed management" }
+  - { name: admin, description: "System administration" }
+
+regions:
+  - { id: "er", name: "Emergency Room" }
+  - { id: "icu", name: "Intensive Care Unit" }
+  - { id: "medsurg", name: "Medical/Surgical" }
+  - { id: "pediatrics", name: "Pediatrics" }
+  - { id: "outpatient", name: "Outpatient Clinic" }

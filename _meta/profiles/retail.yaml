@@ -1,0 +1,153 @@
+industry: retail
+display_name: "Retail Operations Platform"
+
+entities:
+  - name: order
+    description: "A customer purchase order"
+    table: orders
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: customer_id, type: string }
+      - { name: store, type: string }
+      - { name: status, type: enum, values: [placed, processing, shipped, delivered, returned] }
+      - { name: total_amount, type: float }
+      - { name: items_count, type: integer }
+      - { name: placed_at, type: timestamptz }
+      - { name: delivered_at, type: timestamptz, nullable: true }
+    primary_service: primary-service
+    kafka_topic: retail.order
+
+  - name: inventory_reading
+    description: "A stock level reading for a product"
+    table: inventory_readings
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: sku, type: string }
+      - { name: quantity, type: integer }
+      - { name: warehouse, type: string }
+      - { name: recorded_at, type: timestamptz }
+    primary_service: secondary-service
+    kafka_topic: retail.inventory
+
+  - name: store_asset
+    description: "A store fixture, POS terminal, or equipment"
+    table: store_assets
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: name, type: string }
+      - { name: type, type: enum, values: [pos, display, refrigerator, shelf, kiosk] }
+      - { name: store, type: string }
+      - { name: status, type: enum, values: [active, maintenance, decommissioned] }
+    primary_service: topology-service
+    kafka_topic: retail.store_asset
+
+  - name: fulfillment_task
+    description: "A pick, pack, or ship task"
+    table: fulfillment_tasks
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: order_id, type: uuid }
+      - { name: assignee, type: string }
+      - { name: priority, type: enum, values: [standard, express, same_day] }
+      - { name: status, type: enum, values: [pending, picking, packing, shipped, completed] }
+      - { name: due_at, type: timestamptz }
+    primary_service: work-order-service
+    kafka_topic: retail.fulfillment
+
+  - name: demand_forecast
+    description: "Predicted sales demand for a product"
+    table: demand_forecasts
+    fields:
+      - { name: id, type: uuid, primary: true }
+      - { name: sku, type: string }
+      - { name: predicted_units, type: float }
+      - { name: confidence, type: float }
+      - { name: period_start, type: timestamptz }
+      - { name: period_end, type: timestamptz }
+    primary_service: forecast-service
+    kafka_topic: retail.demand_forecast
+
+services:
+  primary-service:
+    rename_to: order-service
+    description: "Manages customer orders and returns"
+  secondary-service:
+    rename_to: inventory-service
+    description: "Tracks real-time stock levels across warehouses"
+  telemetry-service:
+    rename_to: pos-telemetry-service
+    description: "Ingests POS terminal and IoT sensor data"
+  data-ingestion-service:
+    rename_to: catalog-service
+    description: "Processes product catalog updates"
+  topology-service:
+    rename_to: store-layout-service
+    description: "Models store layouts and asset placement"
+  analytics-service:
+    rename_to: sales-analytics-service
+    description: "Real-time sales and conversion metrics"
+  forecast-service:
+    rename_to: demand-forecast-service
+    description: "Predicts product demand by region and season"
+  dispatch-service:
+    rename_to: fulfillment-dispatch-service
+    description: "Assigns fulfillment tasks to warehouse staff"
+  notification-service:
+    rename_to: customer-notification-service
+    description: "Sends order status updates to customers"
+  external-data-service:
+    rename_to: supplier-feed-service
+    description: "Integrates supplier inventory and pricing feeds"
+  aggregator-service:
+    rename_to: aggregator-service
+    description: "Aggregates sales, inventory, and fulfillment data"
+  pricing-service:
+    rename_to: dynamic-pricing-service
+    description: "Manages promotions and dynamic pricing"
+  work-order-service:
+    rename_to: fulfillment-service
+    description: "Manages pick/pack/ship fulfillment tasks"
+  correlation-service:
+    rename_to: fraud-detection-service
+    description: "Correlates transactions for fraud detection"
+
+ui_tabs:
+  - { label: "Dashboard", icon: "dashboard", endpoint: "/api/analytics/dashboard" }
+  - { label: "Orders", icon: "shopping_cart", endpoint: "/api/orders" }
+  - { label: "Inventory", icon: "inventory_2", endpoint: "/api/inventory" }
+  - { label: "Catalog", icon: "category", endpoint: "/api/catalog" }
+  - { label: "Store Layout", icon: "store", endpoint: "/api/topology" }
+  - { label: "Sales Analytics", icon: "analytics", endpoint: "/api/analytics" }
+  - { label: "Demand Forecast", icon: "trending_up", endpoint: "/api/forecasts" }
+  - { label: "Fulfillment", icon: "local_shipping", endpoint: "/api/dispatch" }
+  - { label: "Supplier Feeds", icon: "cloud_download", endpoint: "/api/external" }
+  - { label: "Notifications", icon: "notifications", endpoint: "/api/notifications" }
+  - { label: "Dynamic Pricing", icon: "sell", endpoint: "/api/pricing" }
+  - { label: "Tasks", icon: "assignment", endpoint: "/api/work-orders" }
+  - { label: "Fraud Detection", icon: "security", endpoint: "/api/correlation" }
+  - { label: "Reports", icon: "bar_chart", endpoint: "/api/aggregation" }
+  - { label: "POS Telemetry", icon: "point_of_sale", endpoint: "/api/telemetry" }
+  - { label: "Audit Log", icon: "history", endpoint: "/api/audit" }
+  - { label: "Users", icon: "people", endpoint: "/api/auth/users" }
+
+kpis:
+  - { name: "Orders Today", field: "orders_today", format: "number", color: "#2196f3" }
+  - { name: "Revenue", field: "daily_revenue", format: "currency", color: "#4caf50" }
+  - { name: "Items In Stock", field: "total_in_stock", format: "number", color: "#ff9800" }
+  - { name: "Fulfillment Rate", field: "fulfillment_rate_pct", format: "percent", color: "#9c27b0" }
+  - { name: "Cart Abandonment", field: "abandonment_pct", format: "percent", color: "#f44336" }
+  - { name: "Avg Ship Time", field: "avg_ship_hours", format: "number", color: "#00bcd4" }
+
+roles:
+  - { name: viewer, description: "View dashboards and reports" }
+  - { name: store_associate, description: "Process orders and inventory" }
+  - { name: warehouse_worker, description: "Fulfill and ship orders" }
+  - { name: store_manager, description: "Full store operations access" }
+  - { name: admin, description: "System administration" }
+
+regions:
+  - { id: "store-001", name: "Downtown Flagship" }
+  - { id: "store-002", name: "Mall Location" }
+  - { id: "warehouse-east", name: "East Warehouse" }
+  - { id: "warehouse-west", name: "West Warehouse" }
+  - { id: "online", name: "Online Store" }
