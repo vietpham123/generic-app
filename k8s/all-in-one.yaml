@@ -899,3 +899,44 @@ spec:
           resources:
             requests: { memory: "64Mi", cpu: "50m" }
             limits: { memory: "128Mi", cpu: "200m" }
+
+# ============================================================
+# browser-traffic-generator (Playwright/Chromium - no port)
+# Creates real browser sessions for Dynatrace RUM detection.
+# AGENT: Update DEMO_USERS and NAV_SELECTOR after UI customization.
+# ============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: browser-traffic-gen
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: browser-traffic-gen
+  template:
+    metadata:
+      labels:
+        app: browser-traffic-gen
+    spec:
+      containers:
+        - name: browser-traffic-gen
+          image: <YOUR_REGISTRY>/browser-traffic-gen:latest
+          env:
+            - name: APP_URL
+              value: "http://web-ui:80"
+            - name: CONCURRENT_USERS
+              value: "3"
+            - name: NAVIGATIONS_PER_SESSION
+              value: "10"
+            - name: SESSION_INTERVAL
+              value: "60"
+            - name: LOGIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DEMO_PASSWORD
+          resources:
+            requests: { memory: "512Mi", cpu: "250m" }
+            limits: { memory: "1Gi", cpu: "1000m" }

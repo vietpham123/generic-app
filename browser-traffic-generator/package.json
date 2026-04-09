@@ -1,0 +1,12 @@
+{
+  "name": "browser-traffic-generator",
+  "version": "1.0.0",
+  "description": "Playwright-based traffic generator that creates real Dynatrace RUM sessions",
+  "main": "generator.js",
+  "scripts": {
+    "start": "node generator.js"
+  },
+  "dependencies": {
+    "playwright": "1.52.0"
+  }
+}

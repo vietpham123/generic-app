@@ -56,6 +56,13 @@ In `load-generator/locustfile.py`:
 2. Update request payloads to match domain entities
 3. Update user behavior profiles to match `roles`
 
+### Step 5b: Customize the Browser Traffic Generator
+In `browser-traffic-generator/generator.js`:
+1. Update `DEMO_USERS` array to match `demo_users` from `industry.yaml`
+2. Update `NAV_SELECTOR` if the UI navigation structure changes
+3. Update `LOGIN_USER_SELECTOR` and `LOGIN_SUBMIT_SELECTOR` if the login form changes
+4. The browser traffic generator creates real Dynatrace RUM sessions via headless Chromium
+
 ### Step 6: Update K8s Manifests
 In `k8s/all-in-one.yaml`:
 1. Replace all generic service names with `rename_to` values
@@ -85,6 +92,7 @@ services/
 | `ui/web-ui/src/App.jsx` | Tab names, API endpoints, KPI cards |
 | `k8s/all-in-one.yaml` | Service names, env vars, init SQL |
 | `load-generator/locustfile.py` | Endpoints, payloads, user profiles |
+| `browser-traffic-generator/generator.js` | DEMO_USERS, NAV_SELECTOR, login selectors |
 | `scripts/build-all.sh` | Image names |
 | `scripts/push-all.sh` | Image names |
 | `README.md` | Project description, service table |
@@ -133,6 +141,7 @@ After customization, verify:
 - [ ] Gateway routes match actual service names
 - [ ] UI tabs match `ui_tabs` from `industry.yaml`
 - [ ] Load generator hits the correct endpoints
+- [ ] Browser traffic generator has correct DEMO_USERS and login selectors
 - [ ] README reflects the customized industry
 
 ## Example: Customizing for "Utility"

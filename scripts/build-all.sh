@@ -33,14 +33,18 @@ SERVICES=(
   "gateway/api-gateway"
   "ui/web-ui"
   "load-generator"
+  "browser-traffic-generator"
 )
 
 for svc_path in "${SERVICES[@]}"; do
   svc_name=$(basename "$svc_path")
+  # Map folder names to image names where they differ
+  img_name="$svc_name"
+  [[ "$svc_name" == "browser-traffic-generator" ]] && img_name="browser-traffic-gen"
   echo ""
-  echo "--- Building $svc_name ---"
-  docker build -t "$REGISTRY/$svc_name:latest" "$svc_path" 2>&1 | tail -5
-  echo "  ✓ $svc_name built"
+  echo "--- Building $img_name ---"
+  docker build -t "$REGISTRY/$img_name:latest" "$svc_path" 2>&1 | tail -5
+  echo "  ✓ $img_name built"
 done
 
 echo ""

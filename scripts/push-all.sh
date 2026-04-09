@@ -31,6 +31,7 @@ IMAGES=(
   "api-gateway"
   "web-ui"
   "load-generator"
+  "browser-traffic-gen"
 )
 
 for img in "${IMAGES[@]}"; do

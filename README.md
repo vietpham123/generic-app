@@ -76,7 +76,7 @@ A polyglot microservices platform template designed to be rapidly customized for
 | **Cache**      | Redis 7                                                           |
 | **Messaging**  | Apache Kafka (KRaft mode), RabbitMQ 3.13                         |
 | **Container**  | Docker, Kubernetes                                                |
-| **Traffic**    | Locust (Python) load generator                                    |
+| **Traffic**    | Locust (Python) load generator, Playwright (Chromium) browser traffic generator |
 
 ## Services Overview
 
@@ -100,7 +100,8 @@ A polyglot microservices platform template designed to be rapidly customized for
 | 16 | correlation-service      | .NET       | Event correlation & analysis      |
 | 17 | api-gateway              | Node.js    | API routing & aggregation         |
 | 18 | web-ui                   | React      | Single-page application           |
-| 19 | load-generator           | Locust     | Traffic simulation                |
+| 19 | load-generator           | Locust     | HTTP traffic simulation                |
+| 20 | browser-traffic-gen      | Playwright | Real browser sessions for Dynatrace RUM |
 
 ## Customization
 
@@ -142,8 +143,22 @@ kubectl apply -f k8s/ingress.yaml
 
 ```bash
 kubectl get pods -n <your-namespace>
-# All 23 pods should be Running
+# All 24 pods should be Running (browser-traffic-gen starts at 0 replicas)
 ```
+
+### Browser Traffic Generator
+
+The browser traffic generator uses Playwright (headless Chromium) to create real browser sessions detectable by Dynatrace RUM. Unlike Locust (HTTP-only), it executes the Dynatrace JS agent in a real browser.
+
+```bash
+# Enable browser traffic generation
+kubectl scale deployment/browser-traffic-gen --replicas=1 -n <your-namespace>
+
+# Disable
+kubectl scale deployment/browser-traffic-gen --replicas=0 -n <your-namespace>
+```
+
+Configuration via environment variables: `CONCURRENT_USERS`, `NAVIGATIONS_PER_SESSION`, `SESSION_INTERVAL`. See `browser-traffic-generator/generator.js` for full options.
 
 ## License
 
