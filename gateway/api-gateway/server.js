@@ -1,9 +1,58 @@
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 app.use(cors());
+
+// ============================================================
+// Dynatrace Business Events Integration
+// Sends CloudEvents to the Dynatrace Biz Events Ingest API
+// ============================================================
+const DT_TENANT_URL = process.env.DT_TENANT_URL || '';
+const DT_BIZEVENT_TOKEN = process.env.DT_BIZEVENT_TOKEN || '';
+const DT_BIZEVENT_ENABLED = !!(DT_TENANT_URL && DT_BIZEVENT_TOKEN);
+const EVENT_PROVIDER = process.env.EVENT_PROVIDER || 'genericapp.event.provider';
+
+if (DT_BIZEVENT_ENABLED) {
+  console.log('Dynatrace Business Events ENABLED', DT_TENANT_URL);
+} else {
+  console.log('Dynatrace Business Events DISABLED (set DT_TENANT_URL and DT_BIZEVENT_TOKEN to enable)');
+}
+
+async function sendBizEvent(eventType, data) {
+  if (!DT_BIZEVENT_ENABLED) return;
+  const cloudEvent = {
+    specversion: '1.0',
+    id: `${eventType}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    source: EVENT_PROVIDER,
+    type: eventType,
+    time: new Date().toISOString(),
+    data
+  };
+  try {
+    await axios.post(
+      `${DT_TENANT_URL}/api/v2/bizevents/ingest`,
+      cloudEvent,
+      {
+        headers: {
+          'Content-Type': 'application/cloudevent+json',
+          Authorization: `Api-Token ${DT_BIZEVENT_TOKEN}`
+        },
+        timeout: 5000
+      }
+    );
+  } catch (err) {
+    console.warn('BizEvent send failed:', eventType, err.message);
+  }
+}
+
+function sendBizEvents(events) {
+  if (!DT_BIZEVENT_ENABLED) return;
+  events.forEach(e => sendBizEvent(e.type, e.data));
+}
+
 app.use(express.json());
 
 // =========================================================
@@ -99,6 +148,163 @@ app.post('/api/simulate/cycle', async (req, res) => {
 
   res.json({ simulation: 'complete', results });
 });
+
+// ============================================================
+// Automatic Simulation Loop — fires every 15 seconds
+// Generates business events per cycle (industry-agnostic)
+// ============================================================
+const SIMULATE_INTERVAL = parseInt(process.env.SIMULATE_INTERVAL || '15000', 10);
+
+async function runSimulationCycle() {
+  const cycleStart = Date.now();
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const rng = () => Math.random();
+  const bizEvents = [];
+
+  const units = ['Unit-A', 'Unit-B', 'Unit-C'];
+  const regions = ['Region-North', 'Region-South', 'Region-East', 'Region-West'];
+  const categories = ['category-1', 'category-2', 'category-3', 'category-4', 'category-5'];
+  const priorities = ['low', 'medium', 'high', 'critical'];
+  const channels = ['web', 'api', 'mobile', 'batch'];
+
+  // 1. Incident created event
+  const incidentId = `INC-${Date.now()}-${Math.floor(rng() * 9000 + 1000)}`;
+  bizEvents.push({ type: 'incident.created', data: {
+    'event.provider': EVENT_PROVIDER,
+    'incident.id': incidentId,
+    unit: pick(units),
+    region: pick(regions),
+    priority: pick(priorities),
+    category: pick(categories),
+    'items.affected': Math.floor(rng() * 50) + 1,
+    channel: pick(channels),
+    timestamp: new Date().toISOString()
+  }});
+
+  // 2. Reading recorded event
+  const readingId = `RDG-${pick(['A', 'B', 'C'])}-${String(Math.floor(rng() * 999) + 1).padStart(3, '0')}`;
+  bizEvents.push({ type: 'reading.recorded', data: {
+    'event.provider': EVENT_PROVIDER,
+    'reading.id': readingId,
+    unit: pick(units),
+    region: pick(regions),
+    'value.primary': Math.round(rng() * 1000 * 100) / 100,
+    'value.secondary': Math.round(rng() * 500 * 100) / 100,
+    'quality.score': Math.round((rng() * 0.3 + 0.7) * 1000) / 1000,
+    timestamp: new Date().toISOString()
+  }});
+
+  // 3. Telemetry event
+  bizEvents.push({ type: 'telemetry.received', data: {
+    'event.provider': EVENT_PROVIDER,
+    'device.id': `DEV-${pick(units).replace('Unit-', '')}-${Math.floor(rng() * 100) + 1}`,
+    unit: pick(units),
+    metric: pick(['throughput', 'latency', 'error_rate', 'utilization', 'queue_depth']),
+    value: Math.round(rng() * 100 * 100) / 100,
+    timestamp: new Date().toISOString()
+  }});
+
+  // 4. Data ingestion event
+  bizEvents.push({ type: 'data.ingested', data: {
+    'event.provider': EVENT_PROVIDER,
+    'source.id': `SRC-${String(Math.floor(rng() * 999) + 1).padStart(3, '0')}`,
+    category: pick(categories),
+    'records.processed': Math.floor(rng() * 500 + 10),
+    'records.rejected': Math.floor(rng() * 10),
+    'processing.ms': Math.floor(rng() * 2000 + 50),
+    timestamp: new Date().toISOString()
+  }});
+
+  // 5. Forecast generated event
+  bizEvents.push({ type: 'forecast.generated', data: {
+    'event.provider': EVENT_PROVIDER,
+    unit: pick(units),
+    category: pick(categories),
+    'predicted.value': Math.round(rng() * 500 * 100) / 100,
+    confidence: Math.round((rng() * 0.3 + 0.7) * 1000) / 1000,
+    'horizon.hours': pick([1, 6, 12, 24, 48]),
+    timestamp: new Date().toISOString()
+  }});
+
+  // 6. Dispatch event
+  bizEvents.push({ type: 'work.dispatched', data: {
+    'event.provider': EVENT_PROVIDER,
+    'dispatch.id': `DSP-${Date.now()}`,
+    'incident.id': incidentId,
+    assignee: pick(['operator_a', 'operator_b', 'operator_c', 'team_east', 'team_west']),
+    priority: pick(priorities),
+    status: pick(['assigned', 'in_progress', 'completed', 'deferred']),
+    'eta.minutes': Math.floor(rng() * 120) + 5,
+    timestamp: new Date().toISOString()
+  }});
+
+  // 7. Notification sent event
+  bizEvents.push({ type: 'notification.sent', data: {
+    'event.provider': EVENT_PROVIDER,
+    channel: pick(['email', 'sms', 'push', 'webhook']),
+    subject: pick(['Incident Update', 'Threshold Alert', 'Status Change', 'Resolution Notice', 'Scheduled Maintenance']),
+    'delivery.status': rng() > 0.1 ? 'delivered' : 'failed',
+    unit: pick(units),
+    timestamp: new Date().toISOString()
+  }});
+
+  // 8. Pricing/cost event
+  bizEvents.push({ type: 'pricing.calculated', data: {
+    'event.provider': EVENT_PROVIDER,
+    category: pick(categories),
+    unit: pick(units),
+    'cost.base': Math.round((rng() * 100 + 10) * 100) / 100,
+    'cost.adjusted': Math.round((rng() * 100 + 8) * 100) / 100,
+    'adjustment.reason': pick(['volume_discount', 'peak_surcharge', 'promotional', 'contract_rate', 'spot_rate']),
+    timestamp: new Date().toISOString()
+  }});
+
+  // 9. Correlation/anomaly event
+  if (rng() > 0.5) {
+    bizEvents.push({ type: 'anomaly.detected', data: {
+      'event.provider': EVENT_PROVIDER,
+      'anomaly.id': `ANM-${Date.now()}`,
+      unit: pick(units),
+      region: pick(regions),
+      'risk.score': Math.round(rng() * 100),
+      'anomaly.type': pick(['threshold_breach', 'pattern_deviation', 'rate_change', 'correlation_break']),
+      severity: pick(['low', 'medium', 'high']),
+      timestamp: new Date().toISOString()
+    }});
+  }
+
+  // 10. Audit event
+  bizEvents.push({ type: 'audit.logged', data: {
+    'event.provider': EVENT_PROVIDER,
+    actor: pick(['admin_1', 'operator_a', 'operator_b', 'operator_c', 'system']),
+    action: pick(['login', 'create', 'update', 'delete', 'approve', 'export']),
+    'resource.type': pick(['incident', 'reading', 'dispatch', 'forecast', 'pricing']),
+    'resource.id': `RES-${Math.floor(rng() * 90000 + 10000)}`,
+    timestamp: new Date().toISOString()
+  }});
+
+  // 11. Work order completed event
+  bizEvents.push({ type: 'work.order.completed', data: {
+    'event.provider': EVENT_PROVIDER,
+    'work.order.id': `WO-${Date.now()}`,
+    unit: pick(units),
+    assignee: pick(['operator_a', 'operator_b', 'operator_c']),
+    priority: pick(priorities),
+    'duration.minutes': Math.floor(rng() * 180) + 10,
+    'work.type': pick(['maintenance', 'inspection', 'repair', 'upgrade', 'calibration']),
+    timestamp: new Date().toISOString()
+  }});
+
+  sendBizEvents(bizEvents);
+
+  const durationMs = Date.now() - cycleStart;
+  console.log(`Simulation cycle complete: ${bizEvents.length} bizevents, ${durationMs}ms`);
+}
+
+if (DT_BIZEVENT_ENABLED) {
+  setInterval(runSimulationCycle, SIMULATE_INTERVAL);
+  console.log(`Auto-simulation enabled: every ${SIMULATE_INTERVAL}ms`);
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
