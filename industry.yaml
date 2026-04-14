@@ -341,26 +341,33 @@ regions:
 
 # --- Fault Scenarios ----------------------------------------
 # For resilience testing and chaos engineering demos.
+# These map directly to the gateway's FAULT_SCENARIOS in server.js.
+# affectedServices: list of SERVICE_URLS keys that will fail
+# failureRate: probability (0-1) that a request to an affected service fails
 fault_scenarios:
-  - name: "Service Outage"
-    description: "Kill a random backend service pod"
-    target: "any-service"
+  - id: "database-outage"
+    name: "Database Outage"
+    description: "TimescaleDB connection pool exhausted — primary + secondary + analytics services return 503"
+    affectedServices: [primary, secondary, analytics]
+    failureRate: 0.85
 
-  - name: "Database Latency"
-    description: "Inject 500ms latency on TimescaleDB"
-    target: "timescaledb"
+  - id: "cascade-failure"
+    name: "Cascade Failure"
+    description: "Telemetry service overwhelms data-ingestion, propagates to aggregator and correlation"
+    affectedServices: [telemetry, dataIngestion, aggregator, correlation]
+    failureRate: 0.70
 
-  - name: "Kafka Partition Loss"
-    description: "Simulate Kafka broker failure"
-    target: "kafka"
+  - id: "resource-exhaustion"
+    name: "Resource Exhaustion"
+    description: "Memory pressure on dispatch + notification + work-order services causes OOM kills"
+    affectedServices: [dispatch, notification, workOrder]
+    failureRate: 0.60
 
-  - name: "Cache Flush"
-    description: "Clear all Redis keys"
-    target: "redis"
-
-  - name: "Network Split"
-    description: "Block traffic between two services"
-    target: "network"
+  - id: "network-partition"
+    name: "Network Partition"
+    description: "Network split isolates external-data and forecast services from the cluster"
+    affectedServices: [externalData, forecast]
+    failureRate: 0.95
 
 # --- Demo Users ---------------------------------------------
 demo_users:

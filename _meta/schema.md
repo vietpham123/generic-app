@@ -14,7 +14,7 @@ This document describes every field in `industry.yaml`.
 | `kpis` | list | yes | KPI cards on the dashboard |
 | `roles` | list | yes | User roles for auth-service |
 | `regions` | list | yes | Geographic/logical regions |
-| `fault_scenarios` | list | no | Chaos engineering scenarios |
+| `fault_scenarios` | list | no | Chaos engineering scenarios for the gateway fault injection engine |
 | `demo_users` | list | yes | Pre-seeded demo accounts |
 | `demo_password` | string | yes | Shared password for demo accounts |
 
@@ -65,5 +65,44 @@ kpis:
     source: string         # API endpoint
     field: string          # JSON field in response
     format: string         # number | percent | currency | minutes
+    color: string          # Hex color for the KPI card
+```
+
+## Fault Scenario Schema
+
+```yaml
+fault_scenarios:
+  - id: string             # Identifier used in gateway API (e.g., "database-outage")
+    name: string           # Human-readable scenario name
+    description: string    # Detailed description of the failure mode
+    affectedServices: [string]  # List of SERVICE_URLS keys that will fail (e.g., [primary, secondary])
+    failureRate: float     # Probability (0-1) that a request to affected service returns error
+```
+
+The `affectedServices` values must match keys in the gateway's `SERVICE_URLS` map. When a fault scenario is injected via `POST /api/fault/inject`, the gateway middleware intercepts requests to affected services and returns 503 errors at the specified `failureRate`.
+
+## Role Schema
+
+```yaml
+roles:
+  - name: string           # Role identifier
+    description: string    # What this role can do
+```
+
+## Region Schema
+
+```yaml
+regions:
+  - id: string             # Region identifier
+    name: string           # Display name
+```
+
+## Demo User Schema
+
+```yaml
+demo_users:
+  - username: string       # Login username
+    role: string           # Must match a role name from roles[]
+```
     color: string          # Hex color for the card
 ```
